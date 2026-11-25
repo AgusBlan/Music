@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ff8fc7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Agus Music ♡">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<title>AGUS MUSIC ♡ — YouTube</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&family=Unbounded:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--c1:#ff8fc7;--c2:#ffb3d9}
+*{box-sizing:border-box} body{margin:0;font-family:'Quicksand',Arial;background:linear-gradient(180deg,#fff0f7,#ffe3f0);color:#5a1a3a;min-height:100vh;padding:18px;padding-top:env(safe-area-inset-top)}
+h1{font-family:Unbounded;font-size:30px;margin:0}h1 span{color:var(--c1)}
+.top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.pill{background:white;border:1px solid #ffc7e0;padding:8px 14px;border-radius:20px;font-weight:700;font-size:13px}
+input{width:100%;padding:12px;border-radius:16px;background:white;border:1px solid #ffc7e0;margin:6px 0;color:#5a1a3a;outline:none}
+button{padding:12px 16px;border:none;border-radius:16px;font-weight:800;cursor:pointer;background:var(--c1);color:white;margin:4px;box-shadow:0 6px 18px #ff8fc755}
+button.white{background:white;color:#5a1a3a;border:1px solid #ffc7e0}
+.card{background:white;border:1px solid #ffc7e0;border-radius:20px;padding:14px;margin:10px 0;box-shadow:0 8px 20px #ff8fc722}
+.song{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff5fa;border:1px solid #ffc7e0;border-radius:16px;padding:10px;margin:8px 0}
+.song b{font-size:14px}.like{font-size:22px;cursor:pointer}
+.colors{display:flex;gap:8px;align-items:center;margin:10px 0}.colors input{width:40px;height:40px;padding:0;border:none;border-radius:50%;cursor:pointer}
+.playlist{background:white;border:2px solid var(--c1);border-radius:22px;padding:16px;margin-top:14px}
+.install{background:#5a1a3a;color:white;padding:10px;border-radius:14px;text-align:center;font-size:13px;margin:10px 0}
+iframe{width:100%;height:200px;border:none;border-radius:14px}
+</style></head>
+<body>
+<div class="top"><h1>AGUS MUSIC <span>♡</span></h1><span class="pill">✨ YouTube • cleffairy</span></div>
+<p>Conectá tu YouTube, la app aprende de tus me gusta y te arma la playlist acá. Después la agregás a YouTube.</p>
+<div class="install" id="installBar" style="display:none">¿La querés como app? <button onclick="instalar()">Instalar ♡</button></div>
+<div class="colors">🎨 Tus colores: <input type="color" id="color1" value="#ff8fc7" onchange="cambiarColor()"> <input type="color" id="color2" value="#ffb3d9" onchange="cambiarColor()"> <button class="white" onclick="resetColor()">Reset</button></div>
+
+<button onclick="conectarYT()">Conectar YouTube ↗</button>
+<p id="user" style="font-size:13px">Sin conectar — cualquiera que entre puede conectar su cuenta</p>
+
+<h3>🔍 Buscar en YouTube</h3>
+<input id="buscar" placeholder="Artista - canción">
+<button onclick="buscarYT()">Buscar en YouTube</button>
+<div id="resultados"></div>
+
+<h3>❤️ Tu algoritmo</h3>
+<p id="perfil" style="background:white;padding:12px;border-radius:16px;border:1px solid #ffc7e0">Dale ❤️ o 👎 a 5 canciones y te define tu gusto sola.</p>
+
+<h3>♡ Mi Playlist — se arma acá</h3>
+<div class="playlist" id="playlist">
+<input id="nombrePlaylist" placeholder="Nombre de tu playlist, ej: FADU vibes ♡" value="Agus Music ♡">
+<div id="playlistSongs"></div>
+<button onclick="crearPlaylistYT()">＋ Agregar playlist a YouTube ↗</button>
+<button class="white" onclick="copiarPlaylist()">Copiar</button>
+</div>
+
+<script>
+const CLIENT_ID = 'TU_CLIENT_ID_GOOGLE';
+let accessToken = localStorage.getItem('yt_token') || '';
+let gustos = JSON.parse(localStorage.getItem('agus_gustos') || '{"likes":[],"dislikes":[]}');
+let miPlaylist = JSON.parse(localStorage.getItem('agus_playlist') || '[]');
+let canciones = JSON.parse(localStorage.getItem('agus_canciones') || '[]');
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; document.getElementById('installBar').style.display = 'block'; });
+function instalar(){ if(deferredPrompt) deferredPrompt.prompt(); }
+function cambiarColor(){ document.documentElement.style.setProperty('--c1', document.getElementById('color1').value); document.documentElement.style.setProperty('--c2', document.getElementById('color2').value); localStorage.setItem('agus_music_color', document.getElementById('color1').value); }
+function resetColor(){ document.getElementById('color1').value = '#ff8fc7'; document.getElementById('color2').value = '#ffb3d9'; cambiarColor(); }
+if(localStorage.getItem('agus_music_color')){ document.getElementById('color1').value = localStorage.getItem('agus_music_color'); cambiarColor(); }
+
+function conectarYT(){
+  let redirect = location.origin + location.pathname;
+  let url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect)}&response_type=token&scope=${encodeURIComponent('https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/youtube')}`;
+  location.href = url;
+}
+// Si volvemos de Google con token
+if(location.hash.includes('access_token')){
+  let params = new URLSearchParams(location.hash.substring(1));
+  accessToken = params.get('access_token');
+  localStorage.setItem('yt_token', accessToken);
+  history.replaceState({}, '', location.pathname);
+  cargarMeGusta();
+}
+async function cargarMeGusta(){
+  if(!accessToken) return;
+  document.getElementById('user').innerText = 'Conectada ♡ Leyendo tus me gusta de YouTube...';
+  try{
+    let r = await fetch('https://www.googleapis.com/youtube/v3/videos?part=snippet&myRating=like&maxResults=20', {headers:{'Authorization':'Bearer '+accessToken}});
+    let j = await r.json();
+    if(j.items){
+      j.items.forEach(v=>{
+        let titulo = v.snippet.title;
+        let genero = v.snippet.categoryId || 'Tu gusto';
+        if(!canciones.find(c=>c.titulo===titulo)){
+          canciones.push({titulo:titulo, genero:genero, videoId:v.id});
+          gustos.likes.push(genero);
+        }
+      });
+      guardar(); render(); aprender();
+      document.getElementById('user').innerText = 'Conectada ♡ Aprendiendo de tus '+j.items.length+' me gusta de YouTube.';
+    }
+  }catch(e){ document.getElementById('user').innerText = 'Error conectando. Revisá tu Client ID.'; }
+}
+async function buscarYT(){
+  let q = document.getElementById('buscar').value;
+  if(!q) return;
+  // Sin token: usa búsqueda normal de YouTube
+  if(!accessToken){
+    window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(q), '_blank');
+    return;
+  }
+  let r = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(q)}&type=video&maxResults=6`, {headers:{'Authorization':'Bearer '+accessToken}});
+  let j = await r.json();
+  let html = '';
+  (j.items||[]).forEach(v=>{
+    html += `<div class="song"><div><b>${v.snippet.title}</b><br><span style="font-size:12px">${v.snippet.channelTitle}</span></div><div><button onclick="agregarDirecto('${v.id.videoId}','${v.snippet.title.replace(/'/g,'')}')">＋</button> <button class="white" onclick="window.open('https://www.youtube.com/watch?v=${v.id.videoId}','_blank')">▶</button></div></div>`;
+  });
+  document.getElementById('resultados').innerHTML = html;
+}
+function agregarDirecto(videoId, titulo){
+  if(!miPlaylist.find(p=>p.videoId===videoId)){
+    miPlaylist.push({titulo:titulo, videoId:videoId});
+    guardar(); renderPlaylist();
+  }
+}
+function like(i, ok){
+  let c = canciones[i];
+  if(ok){ gustos.likes.push(c.genero); if(!miPlaylist.find(p=>p.titulo===c.titulo)) miPlaylist.push({titulo:c.titulo, videoId:c.videoId||''}); }
+  else gustos.dislikes.push(c.genero);
+  guardar(); aprender(); renderPlaylist();
+}
+function aprender(){
+  let conteo = {}; gustos.likes.forEach(g=>conteo[g]=(conteo[g]||0)+1);
+  let top = Object.keys(conteo).sort((a,b)=>conteo[b]-conteo[a])[0]||'';
+  if(top) document.getElementById('perfil').innerText = `La app aprendió: Te gusta mucho ${top}. Te recomienda más ${top} y menos ${gustos.dislikes.join(', ')||'nada'}. Tu algoritmo ya está definido.`;
+  guardar();
+}
+function guardar(){
+  localStorage.setItem('agus_gustos', JSON.stringify(gustos));
+  localStorage.setItem('agus_playlist', JSON.stringify(miPlaylist));
+  localStorage.setItem('agus_canciones', JSON.stringify(canciones));
+}
+function render(){
+  let html = '';
+  canciones.forEach((c,i)=>{
+    html += `<div class="song"><div><b>${c.titulo}</b><br><span style="font-size:12px">${c.genero}</span></div><div><span class="like" onclick="like(${i},true)">❤️</span> <span class="like" onclick="like(${i},false)">👎</span> ${c.videoId?`<button onclick="window.open('https://www.youtube.com/watch?v=${c.videoId}','_blank')">▶</button>`:''}</div></div>`;
+  });
+  document.getElementById('feed')?.remove();
+  let div = document.createElement('div'); div.id='feed'; div.innerHTML = html;
+  document.getElementById('resultados').after(div);
+}
+function renderPlaylist(){
+  document.getElementById('playlistSongs').innerHTML = miPlaylist.map((s,i)=>`<div class="song"><span>${i+1}. ${s.titulo}</span><button class="white" onclick="miPlaylist.splice(${i},1);guardar();renderPlaylist()">×</button></div>`).join('') || '<p style="font-size:13px">Todavía vacía, agregá canciones arriba.</p>';
+}
+async function crearPlaylistYT(){
+  if(!miPlaylist.length) return alert('Agregá canciones primero');
+  let nombre = document.getElementById('nombrePlaylist').value || 'Agus Music ♡';
+  if(!accessToken){ alert('Conectá tu YouTube primero para crear la playlist en tu cuenta.'); return conectarYT(); }
+  try{
+    // 1. Crear playlist en tu YouTube
+    let r = await fetch('https://www.googleapis.com/youtube/v3/playlists?part=snippet,status', {method:'POST', headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'}, body:JSON.stringify({snippet:{title:nombre, description:'Creada con Agus Music ♡'}, status:{privacyStatus:'private'}})});
+    let j = await r.json();
+    let playlistId = j.id;
+    // 2. Agregar cada canción
+    for(let s of miPlaylist){
+      if(!s.videoId) continue;
+      await fetch('https://www.googleapis.com/youtube/v3/playlistItems?part=snippet', {method:'POST', headers:{'Authorization':'Bearer '+accessToken,'Content-Type':'application/json'}, body:JSON.stringify({snippet:{playlistId:playlistId, resourceId:{kind:'youtube#video', videoId:s.videoId}}})});
+    }
+    alert('Lista creada en tu YouTube ♡');
+    window.open('https://www.youtube.com/playlist?list='+playlistId, '_blank');
+  }catch(e){ alert('Error creando playlist. Revisá tu Client ID y permisos.'); }
+}
+function copiarPlaylist(){ navigator.clipboard.writeText(miPlaylist.map(s=>s.titulo).join('\n')); alert('Copiada ♡'); }
+if(accessToken) cargarMeGusta();
+render(); renderPlaylist(); aprender();
+if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js'); }
+</script>
+</body></html>
